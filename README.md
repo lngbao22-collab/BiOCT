@@ -10,12 +10,12 @@
   title        = {BiOCT: Enhancing Knowledge Graph Embedding by Translating in Bioctonion for Link Prediction,
   publisher    = {GitHub},
   booktitle    = {GitHub repository},
-  howpublished = {/home/tdc/Desktop/MMRotatE/setup.py},
+  howpublished = {https://github.com/IceIce1ce/BiOCT},
   year         = {2022}
 }
 ```
 
-## 2. To train and test the model for WN18RR, FB15K-237, YAGO3-10, Concept100k, and Atomic datasets, run the following scriptd:
+## 2. To train and test the model for WN18RR, FB15K-237, YAGO3-10, Concept100k, and Atomic datasets, run the following scripts:
 ```shell
 jupyter notebook codes/Untiled.ipynb
 jupyter notebook codes/Untiled1.ipynb
