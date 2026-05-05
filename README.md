@@ -1,4 +1,4 @@
-# BiCOT
+# BiOCT
 
 ## 1. Introduction
 
