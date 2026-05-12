@@ -2,6 +2,7 @@ import os
 import json
 import torch
 import argparse
+import warnings
 import numpy as np
 from torch import optim
 from datasets import Dataset
@@ -10,13 +11,16 @@ from models import *
 from regularizers import *
 from optimizers import KBCOptimizer
 
+# Disable sparse tensor invariant checks for performance (BiQUE uses sparse embeddings)
+torch.sparse.check_sparse_tensor_invariants(False)
+
+# Suppress the sparse invariant checks warning
+warnings.filterwarnings("ignore", message=".*Sparse invariant checks are implicitly disabled.*")
+
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 DEFAULT_LOG_DIR = os.path.join(PROJECT_ROOT, "logs")
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# Disable sparse tensor invariant checks for performance (BiQUE uses sparse embeddings)
-torch.sparse.check_sparse_tensor_invariants(False)
 
 datasets = ['WN18RR', 'FB237', 'YAGO3-10', 'Atomic', 'Concept100k']
 optimizers = ['Adagrad']
