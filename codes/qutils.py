@@ -1,7 +1,4 @@
-import math
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 def get_w(x):
     dim = x.size(1) // 4

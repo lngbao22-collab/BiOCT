@@ -16,5 +16,7 @@
     "do_ce_weight": true,
     "save_path": "D:\\Data\\fit@hcmus\\Khoa-luan\\BiOCT\\logs",
     "model_id": "0",
-    "checkpoint": ""
+    "checkpoint": "",
+    "task": "link_prediction",
+    "eval_batch_size": 1024
 }

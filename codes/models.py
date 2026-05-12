@@ -4,8 +4,6 @@ from tqdm import tqdm
 from abc import ABC, abstractmethod
 from typing import Tuple, List, Dict
 from qutils import *
-import os
-import numpy as np
 
 class KBCModel(nn.Module, ABC):
     def get_ranking(

@@ -6,6 +6,7 @@ import warnings
 import numpy as np
 from torch import optim
 from datasets import Dataset
+from metrics import evaluate_link_prediction, evaluate_triple_classification_labeled
 
 from models import *
 from regularizers import *
@@ -45,6 +46,8 @@ parser.add_argument('-weight', '--do_ce_weight', action='store_true')
 parser.add_argument('-path', '--save_path', type=str, default=DEFAULT_LOG_DIR)
 parser.add_argument('-id', '--model_id', type=str, default='0')
 parser.add_argument('-ckpt', '--checkpoint', type=str, default='')
+parser.add_argument('--task', choices=['link_prediction', 'triple_classification', 'both'], default='link_prediction')
+parser.add_argument('--eval_batch_size', default=1024, type=int, help='Batch size for evaluation scoring')
 
 args = parser.parse_args()
 
@@ -105,10 +108,19 @@ optim_method = {
 optimizer = KBCOptimizer(model, regularizer, optim_method, args.batch_size)
 
 
-def avg_both(mrrs: Dict[str, float], hits: Dict[str, torch.FloatTensor]):
-    m = (mrrs['lhs'] + mrrs['rhs']) / 2.
-    h = (hits['lhs'] + hits['rhs']) / 2.
-    return {'MRR': m, 'hits@[1,3,10]': h}
+def run_link_prediction_eval(split: str):
+    _, metrics = evaluate_link_prediction(dataset, model, split, -1)
+    return metrics
+
+
+def run_triple_classification_eval(split: str = 'test'):
+    return evaluate_triple_classification_labeled(
+        dataset,
+        model,
+        project_root=PROJECT_ROOT,
+        dataset_name=args.dataset,
+        eval_batch_size=args.eval_batch_size,
+    )
 
 
 cur_loss = 0
@@ -117,8 +129,15 @@ if args.checkpoint != '':
     model.load_state_dict(torch.load(os.path.join(args.checkpoint, 'checkpoint'), map_location=DEVICE))
 
 if args.do_test:
-    test = avg_both(*dataset.eval(model, 'test', -1))
-    print(f"\t TEST : {test} ")
+    if args.task in ['link_prediction', 'both']:
+        test = run_link_prediction_eval('test')
+        print(f"\t LINK PREDICTION TEST : {test} ")
+    if args.task in ['triple_classification', 'both']:
+        tc_test = run_triple_classification_eval('test')
+        if tc_test is None:
+            print(f"\t TRIPLE CLASSIFICATION TEST : skipped (missing or incompatible labeled data in src_data/{args.dataset}_w_labels)")
+        else:
+            print(f"\t TRIPLE CLASSIFICATION TEST : {tc_test} ")
     print("\t ============================================")
 
 best_valid_mrr = 0.0
@@ -131,8 +150,8 @@ if args.do_train:
             cur_loss = optimizer.epoch(examples, e=e, weight=ce_weight)
 
             if (e + 1) % args.valid == 0:
-                valid = avg_both(*dataset.eval(model, 'valid', -1))
-                print("\t VALID: ", valid)
+                valid = run_link_prediction_eval('valid')
+                print("\t VALID (LINK PREDICTION): ", valid)
 
                 log_file.write("Epoch: {}\n".format(e+1))
                 log_file.write("\t VALID: {}\n".format(valid))
@@ -148,11 +167,22 @@ if args.do_train:
         checkpoint_path = os.path.join(save_path, 'checkpoint')
         if os.path.exists(checkpoint_path):
             model = load_model(model, save_path)
-        test = avg_both(*dataset.eval(model, 'test', -1))
+        test = run_link_prediction_eval('test')
         print(f"\t BEST VALID MRR : {best_valid_mrr}, IN EPOCH : {best_epc}")
-        print(f"\t TEST : {test} ")
+        print(f"\t LINK PREDICTION TEST : {test} ")
+        if args.task in ['triple_classification', 'both']:
+            tc_test = run_triple_classification_eval('test')
+            if tc_test is None:
+                print(f"\t TRIPLE CLASSIFICATION TEST : skipped (missing or incompatible labeled data in src_data/{args.dataset}_w_labels)")
+            else:
+                print(f"\t TRIPLE CLASSIFICATION TEST : {tc_test} ")
         print("\t ============================================")
 
         log_file.write(f"\t BEST VALID MRR : {best_valid_mrr}, IN EPOCH : {best_epc}\n")
-        log_file.write(f"\t TEST : {test} \n")
+        log_file.write(f"\t LINK PREDICTION TEST : {test} \n")
+        if args.task in ['triple_classification', 'both']:
+            if tc_test is None:
+                log_file.write(f"\t TRIPLE CLASSIFICATION TEST : skipped (missing or incompatible labeled data in src_data/{args.dataset}_w_labels)\n")
+            else:
+                log_file.write(f"\t TRIPLE CLASSIFICATION TEST : {tc_test} \n")
         log_file.write("\t ============================================\n")

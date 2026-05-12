@@ -1,0 +1,4 @@
+	 BEST VALID MRR : 0.0, IN EPOCH : 0
+	 LINK PREDICTION TEST : {'MR': 20448.763671875, 'MRR': 0.0002590595977380872, 'hits@[1,3,10]': tensor([0.0000, 0.0002, 0.0003])} 
+	 TRIPLE CLASSIFICATION TEST : {'Accuracy': 0.8, 'Precision': 1.0, 'Recall': 0.8, 'F1': 0.888888888888889, 'PR-AUC': 1.0, 'ROC-AUC': nan, 'Threshold': -7.330695694918177e-08, 'NumValid': 6, 'NumTest': 10} 
+	 ============================================

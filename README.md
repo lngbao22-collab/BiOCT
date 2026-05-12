@@ -44,6 +44,10 @@ set CUDA_VISIBLE_DEVICES=0
 - `-save`: save checkpoint and config under `logs/`
 - `-weight`: use dataset cross-entropy weights
 - `-id`: model run id used in the save folder name
+- `--task`: `link_prediction`, `triple_classification`, or `both`
+- `--eval_batch_size`: batch size for evaluation and classification scoring
+
+Triple classification only runs when labeled files exist under `src_data/<dataset>_w_labels/`. If that folder is missing or incompatible with the dataset mappings, the script skips triple classification and runs link prediction only.
 
 ## Existing run commands
 
@@ -60,7 +64,8 @@ python codes\learn.py --dataset FB237 --model BiQUE --rank 500 ^
 ```bat
 python codes\learn.py --dataset WN18RR --model BiQUE --rank 500 ^
         --optimizer Adagrad --learning_rate 1e-1 --batch_size 300 ^
-        --regularizer N3 --reg 1.5e-1 --max_epochs 100 --valid 5 -train -id 0 -save -weight
+        --regularizer N3 --reg 1.5e-1 --max_epochs 100 --valid 5 -train -id 0 -save -weight ^
+        --task both
 ```
 
 ### YAGO3-10
@@ -92,3 +97,13 @@ python codes\learn.py --dataset Atomic --model BiQUE --rank 128 ^
 - The save directory defaults to `logs/`.
 - The save folder name is built from the model, dataset, regularizer, batch size, rank, regularization value, learning rate, and run id.
 - The WN18RR example above uses `-weight` and writes `train.log` plus the checkpoint files into `logs/`.
+- Background runs can be started from the `nohup/` folder with Bash, Git Bash, or WSL:
+
+```bash
+bash nohup/run.sh --dataset WN18RR --model BiQUE --rank 500 --optimizer Adagrad --learning_rate 1e-1 --batch_size 300 --regularizer N3 --reg 1.5e-1 --max_epochs 100 --valid 5 -train -id 0 -save -weight --task both
+bash nohup/check.sh
+bash nohup/stop.sh
+```
+
+- `nohup/run.sh` writes the process id to `nohup/learn.pid` and the log to `nohup/learn.nohup.log`.
+- Set `SCRIPT_PATH` if you want `nohup/run.sh` to launch a different source file, and set `PYTHON_BIN` if your Python interpreter is not on `PATH`.

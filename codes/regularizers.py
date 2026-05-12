@@ -2,7 +2,6 @@ import torch
 from torch import nn
 from typing import Tuple
 from abc import ABC, abstractmethod
-from qutils import get_norm
 
 class Regularizer(nn.Module, ABC):
     @abstractmethod

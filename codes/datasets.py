@@ -1,9 +1,9 @@
 import os
-import torch
 import pickle
 import numpy as np
 from typing import Dict, Tuple, List
 from models import KBCModel
+from metrics import evaluate_link_prediction
 
 class Dataset(object):
     def __init__(self, data_path: str, name: str):
@@ -51,45 +51,17 @@ class Dataset(object):
             self, model: KBCModel, split: str, n_queries: int = -1, missing_eval: str = 'both',
             at: Tuple[int] = (1, 3, 10), log_result=False, save_path=None
     ):
-        model.eval()
-        device = next(model.parameters()).device
-        test = self.get_examples(split)
-        examples = torch.from_numpy(test.astype('int64')).to(device)
-        missing = [missing_eval]
-        if missing_eval == 'both':
-            missing = ['rhs', 'lhs']
+        side_metrics, _ = evaluate_link_prediction(
+            self,
+            model,
+            split,
+            n_queries=n_queries,
+            missing_eval=missing_eval,
+            at=at,
+        )
 
-        mean_reciprocal_rank = {}
-        hits_at = {}
-
-        flag = False
-        for m in missing:
-            q = examples.clone()
-            if n_queries > 0:
-                permutation = torch.randperm(len(examples))[:n_queries]
-                q = examples[permutation]
-            if m == 'lhs':
-                tmp = torch.clone(q[:, 0])
-                q[:, 0] = q[:, 2]
-                q[:, 2] = tmp
-                q[:, 1] += self.n_predicates // 2
-            ranks = model.get_ranking(q, self.to_skip[m], batch_size=500)
-
-            if log_result:
-                if not flag:
-                    results = np.concatenate((q.cpu().detach().numpy(),
-                                              np.expand_dims(ranks.cpu().detach().numpy(), axis=1)), axis=1)
-                    flag = True
-                else:
-                    results = np.concatenate((results, np.concatenate((q.cpu().detach().numpy(),
-                                              np.expand_dims(ranks.cpu().detach().numpy(), axis=1)), axis=1)), axis=0)
-
-            mean_reciprocal_rank[m] = torch.mean(1. / ranks).item()
-            hits_at[m] = torch.FloatTensor((list(map(
-                lambda x: torch.mean((ranks <= x).float()).item(),
-                at
-            ))))
-
+        mean_reciprocal_rank = {k: v['MRR'] for k, v in side_metrics.items()}
+        hits_at = {k: v['hits'] for k, v in side_metrics.items()}
         return mean_reciprocal_rank, hits_at
 
     def get_shape(self):

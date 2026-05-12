@@ -1,13 +1,12 @@
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Tuple, List
+from typing import Any, Dict
 
-import numpy as np
 import torch
-from torch import optim
 
 from datasets import Dataset
+from metrics import evaluate_link_prediction
 from models import *
 from regularizers import *
 
@@ -18,54 +17,6 @@ class dotdict(dict):
     __delattr__ = dict.__delitem__
 
 
-
-def eval(
-        dataset: Dataset, model: KBCModel, split: str, n_queries: int = -1, missing_eval: str = 'both',
-        at: Tuple[int] = (1, 3, 10), log_result=False, save_path=None
-):
-    model.eval()
-    device = next(model.parameters()).device
-    test = dataset.get_examples(split)
-    examples = torch.from_numpy(test.astype('int64')).to(device)
-    missing = [missing_eval]
-    if missing_eval == 'both':
-        missing = ['rhs', 'lhs']
-
-    mean_reciprocal_rank = {}
-    hits_at = {}
-
-    flag = False
-    for m in missing:
-        q = examples.clone()
-        if n_queries > 0:
-            permutation = torch.randperm(len(examples))[:n_queries]
-            q = examples[permutation]
-        if m == 'lhs':
-            tmp = torch.clone(q[:, 0])
-            q[:, 0] = q[:, 2]
-            q[:, 2] = tmp
-            q[:, 1] += dataset.n_predicates // 2
-        ranks = model.get_ranking(q, dataset.to_skip[m], batch_size=500)
-
-        if log_result:
-            if not flag:
-                results = np.concatenate((q.cpu().detach().numpy(),
-                                          np.expand_dims(ranks.cpu().detach().numpy(), axis=1)), axis=1)
-                flag = True
-            else:
-                results = np.concatenate((results, np.concatenate((q.cpu().detach().numpy(),
-                                          np.expand_dims(ranks.cpu().detach().numpy(), axis=1)), axis=1)), axis=0)
-
-        mean_reciprocal_rank[m] = torch.mean(1. / ranks).item()
-        hits_at[m] = torch.FloatTensor((list(map(
-            lambda x: torch.mean((ranks <= x).float()).item(),
-            at
-        ))))
-
-    return mean_reciprocal_rank, hits_at
-
-
-
 def load_model(model, save_path):
     state = torch.load(os.path.join(save_path, 'checkpoint'), map_location=next(model.parameters()).device)
     model.load_state_dict(state)
@@ -73,10 +24,13 @@ def load_model(model, save_path):
     return model
 
 
-def avg_both(mrrs: Dict[str, float], hits: Dict[str, torch.FloatTensor]):
-    m = (mrrs['lhs'] + mrrs['rhs']) / 2.
-    h = (hits['lhs'] + hits['rhs']) / 2.
-    return {'MRR': round(m, 3), 'hits@[1,3,10]': list(map(lambda x:round(x*100/100.0, 3), h.numpy()))}
+def format_link_metrics(metrics: Dict[str, Any]):
+    rounded_hits = [round(float(x), 3) for x in metrics['hits@[1,3,10]'].numpy().tolist()]
+    return {
+        'MR': round(float(metrics['MR']), 3),
+        'MRR': round(float(metrics['MRR']), 3),
+        'hits@[1,3,10]': rounded_hits,
+    }
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -119,5 +73,6 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 regularizer.to(device)
 model = load_model(model, save_path)
-test = avg_both(*eval(dataset, model, 'test', -1))
+_, test_metrics = evaluate_link_prediction(dataset, model, 'test', -1)
+test = format_link_metrics(test_metrics)
 print(test)
