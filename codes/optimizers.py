@@ -1,9 +1,15 @@
 import tqdm
 import torch
+import warnings
 from torch import nn
 from torch import optim
 from models import KBCModel
 from regularizers import Regularizer
+
+# Ensure sparse tensor invariant checks are explicitly disabled to avoid
+# implicit-check warnings when optimizers construct sparse tensors.
+torch.sparse.check_sparse_tensor_invariants(False)
+warnings.filterwarnings("ignore", message=".*sparse invariant checks.*", category=UserWarning)
 
 
 class KBCOptimizer(object):
