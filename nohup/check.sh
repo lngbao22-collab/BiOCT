@@ -3,8 +3,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_DIR="$ROOT_DIR/nohup"
-LOG_FILE="$LOG_DIR/learn.nohup.log"
-PID_FILE="$LOG_DIR/learn.pid"
+JOB_NAME="${JOB_NAME:-learn}"
+LOG_FILE="$LOG_DIR/${JOB_NAME}.nohup.log"
+PID_FILE="$LOG_DIR/${JOB_NAME}.pid"
 
 if [[ -f "$PID_FILE" ]]; then
   PID="$(cat "$PID_FILE")"

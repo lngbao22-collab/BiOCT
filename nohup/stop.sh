@@ -3,7 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_DIR="$ROOT_DIR/nohup"
-PID_FILE="$LOG_DIR/learn.pid"
+JOB_NAME="${JOB_NAME:-learn}"
+PID_FILE="$LOG_DIR/${JOB_NAME}.pid"
 
 if [[ ! -f "$PID_FILE" ]]; then
   echo "No PID file found."
