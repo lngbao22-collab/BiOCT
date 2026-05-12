@@ -5,7 +5,8 @@ import numpy as np
 from pathlib import Path
 from collections import defaultdict
 
-DATA_PATH = "../data"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_PATH = PROJECT_ROOT / "data"
 
 def prepare_dataset(path, name):
     files = ['train', 'valid', 'test']
@@ -28,9 +29,9 @@ def prepare_dataset(path, name):
     print("{} entities and {} relations".format(len(entities), len(relations)))
     n_relations = len(relations)
     n_entities = len(entities)
-    os.makedirs(os.path.join(DATA_PATH, name))
+    os.makedirs(DATA_PATH / name, exist_ok=True)
     for (dic, f) in zip([entities_to_id, relations_to_id], ['ent_id', 'rel_id']):
-        ff = open(os.path.join(DATA_PATH, name, f), 'w+')
+        ff = open(DATA_PATH / name / f, 'w+')
         for (x, i) in dic.items():
             ff.write("{}\t{}\n".format(x, i))
         ff.close()
@@ -90,14 +91,12 @@ def prepare_dataset(path, name):
 
 
 if __name__ == "__main__":
-    datasets = ['WN18RR', 'FB237', 'YAGO3-10', 'Atomic', 'conceptnet-100k']
+    datasets = ['WN18RR', 'FB237', 'YAGO3-10', 'Atomic', 'Concept100k']
     for d in datasets:
         print("Preparing dataset {}".format(d))
         try:
             prepare_dataset(
-                os.path.join(
-                    '../src_data', d
-                ),
+                PROJECT_ROOT / 'src_data' / d,
                 d
             )
         except OSError as e:

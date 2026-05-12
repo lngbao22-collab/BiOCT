@@ -1,0 +1,20 @@
+{
+    "dataset": "WN18RR",
+    "model": "BiQUE",
+    "regularizer": "N3",
+    "optimizer": "Adagrad",
+    "max_epochs": 100,
+    "valid": 5.0,
+    "rank": 500,
+    "batch_size": 300,
+    "reg": 0.15,
+    "init": 0.001,
+    "learning_rate": 0.1,
+    "do_train": true,
+    "do_test": false,
+    "do_save": true,
+    "do_ce_weight": true,
+    "save_path": "D:\\Data\\fit@hcmus\\Khoa-luan\\BiOCT\\logs",
+    "model_id": "0",
+    "checkpoint": ""
+}

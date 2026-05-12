@@ -20,6 +20,7 @@ class KBCOptimizer(object):
         self.model.train()
         actual_examples = examples[torch.randperm(examples.shape[0]), :]
         loss = nn.CrossEntropyLoss(reduction='mean', weight=weight)
+        device = next(self.model.parameters()).device
 
         with tqdm.tqdm(total=examples.shape[0], unit='ex', disable=not self.verbose) as bar:
             bar.set_description(f'train loss')
@@ -27,7 +28,7 @@ class KBCOptimizer(object):
             while b_begin < examples.shape[0]:
                 input_batch = actual_examples[
                     b_begin:b_begin + self.batch_size
-                ].cuda()
+                ].to(device)
 
                 predictions, factors = self.model.forward(input_batch)
                 truth = input_batch[:, 2]

@@ -10,6 +10,14 @@ from models import *
 from regularizers import *
 from optimizers import KBCOptimizer
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+DEFAULT_LOG_DIR = os.path.join(PROJECT_ROOT, "logs")
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Disable sparse tensor invariant checks for performance (BiQUE uses sparse embeddings)
+torch.sparse.check_sparse_tensor_invariants(False)
+
 datasets = ['WN18RR', 'FB237', 'YAGO3-10', 'Atomic', 'Concept100k']
 optimizers = ['Adagrad']
 
@@ -30,7 +38,7 @@ parser.add_argument('-train', '--do_train', action='store_true')
 parser.add_argument('-test', '--do_test', action='store_true')
 parser.add_argument('-save', '--do_save', action='store_true')
 parser.add_argument('-weight', '--do_ce_weight', action='store_true')
-parser.add_argument('-path', '--save_path', type=str, default='../logs/')
+parser.add_argument('-path', '--save_path', type=str, default=DEFAULT_LOG_DIR)
 parser.add_argument('-id', '--model_id', type=str, default='0')
 parser.add_argument('-ckpt', '--checkpoint', type=str, default='')
 
@@ -53,27 +61,26 @@ def load_model(model, save_path):
     model.load_state_dict(state)
     return model
 
+save_path = args.save_path
 if args.do_save:
     assert args.save_path
     save_suffix = f"{args.model}_{args.dataset}_{args.regularizer}_{args.batch_size}_{args.rank}_{args.reg}_{args.learning_rate}_{args.model_id}"
 
-    if not os.path.exists(args.save_path):
-        os.mkdir(args.save_path)
+    os.makedirs(args.save_path, exist_ok=True)
 
     save_path = os.path.join(args.save_path, save_suffix)
-    if not os.path.exists(save_path):
-        os.mkdir(save_path)
+    os.makedirs(save_path, exist_ok=True)
 
     with open(os.path.join(save_path, 'config.json'), 'w') as f:
         json.dump(vars(args), f, indent=4)
 
 
-data_path = "../data"
+data_path = DATA_DIR
 dataset = Dataset(data_path, args.dataset)
 examples = torch.from_numpy(dataset.get_train().astype('int64'))
 
 if args.do_ce_weight:
-    ce_weight = torch.Tensor(dataset.get_weight()).cuda()
+    ce_weight = torch.Tensor(dataset.get_weight()).to(DEVICE)
 else:
     ce_weight = None
 
@@ -84,9 +91,8 @@ regularizer = None
 exec('model = '+args.model+'(dataset.get_shape(), args.rank, args.init)')
 exec('regularizer = '+args.regularizer+'(args.reg)')
 
-device = 'cuda'
-model.to(device)
-regularizer.to(device)
+model.to(DEVICE)
+regularizer.to(DEVICE)
 
 optim_method = {
     'Adagrad': lambda: optim.Adagrad(model.parameters(), lr=args.learning_rate),
@@ -104,7 +110,7 @@ def avg_both(mrrs: Dict[str, float], hits: Dict[str, torch.FloatTensor]):
 cur_loss = 0
 
 if args.checkpoint != '':
-    model.load_state_dict(torch.load(os.path.join(args.checkpoint, 'checkpoint'), map_location='cuda:0'))
+    model.load_state_dict(torch.load(os.path.join(args.checkpoint, 'checkpoint'), map_location=DEVICE))
 
 if args.do_test:
     test = avg_both(*dataset.eval(model, 'test', -1))
@@ -135,7 +141,9 @@ if args.do_train:
                     best_epc = e
 
 
-        model = load_model(model, save_path)
+        checkpoint_path = os.path.join(save_path, 'checkpoint')
+        if os.path.exists(checkpoint_path):
+            model = load_model(model, save_path)
         test = avg_both(*dataset.eval(model, 'test', -1))
         print(f"\t BEST VALID MRR : {best_valid_mrr}, IN EPOCH : {best_epc}")
         print(f"\t TEST : {test} ")

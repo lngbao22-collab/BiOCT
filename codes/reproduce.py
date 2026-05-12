@@ -1,4 +1,9 @@
+import os
 import sys
+from pathlib import Path
+from typing import Dict, Tuple, List
+
+import numpy as np
 import torch
 from torch import optim
 
@@ -19,8 +24,9 @@ def eval(
         at: Tuple[int] = (1, 3, 10), log_result=False, save_path=None
 ):
     model.eval()
+    device = next(model.parameters()).device
     test = dataset.get_examples(split)
-    examples = torch.from_numpy(test.astype('int64')).cuda()
+    examples = torch.from_numpy(test.astype('int64')).to(device)
     missing = [missing_eval]
     if missing_eval == 'both':
         missing = ['rhs', 'lhs']
@@ -61,7 +67,7 @@ def eval(
 
 
 def load_model(model, save_path):
-    state = torch.load(os.path.join(save_path, 'checkpoint'))
+    state = torch.load(os.path.join(save_path, 'checkpoint'), map_location=next(model.parameters()).device)
     model.load_state_dict(state)
 
     return model
@@ -73,7 +79,8 @@ def avg_both(mrrs: Dict[str, float], hits: Dict[str, torch.FloatTensor]):
     return {'MRR': round(m, 3), 'hits@[1,3,10]': list(map(lambda x:round(x*100/100.0, 3), h.numpy()))}
 
 
-data_path = "../data/"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+data_path = str(PROJECT_ROOT / "data")
 checkpoint = sys.argv[1]
 config = {
     "model": "BiQUE",
@@ -86,19 +93,19 @@ config = {
 
 
 if checkpoint == "WN18RR":
-    save_path = '../ckpt/BiQUE_WN18RR_wN3_300_128_0.15_0.1_0'
+    save_path = str(PROJECT_ROOT / 'ckpt' / 'BiQUE_WN18RR')
     config["dataset"] = "WN18RR"
 elif checkpoint == "FB237":
-    save_path = '../ckpt/BiQUE_FB237_wN3_500_128_0.07_0.1_0'
+    save_path = str(PROJECT_ROOT / 'ckpt' / 'BiQUE_FB237')
     config["dataset"] = "FB237"
 elif checkpoint == "YAGO3":
-    save_path = '../ckpt/BiQUE_YAGO3-10_wN3_1000_128_0.005_0.1_0'
+    save_path = str(PROJECT_ROOT / 'ckpt' / 'BiQUE_YAGO3-10')
     config["dataset"] = "YAGO3-10"
 elif checkpoint == "CN100K":
-    save_path = '../ckpt/BiQUE_Concept100k_wN3_5000_128_0.1_0.1_0'
+    save_path = str(PROJECT_ROOT / 'ckpt' / 'BiQUE_Concept100k')
     config["dataset"] = "conceptnet-100k"
 elif checkpoint == "ATOMIC":
-    save_path = '../ckpt/BiQUE_Atomic_wN3_5000_128_0.005_0.1_0'
+    save_path = str(PROJECT_ROOT / 'ckpt' / 'BiQUE_Atomic')
     config["dataset"] = "Atomic"
 
 
@@ -108,7 +115,7 @@ dataset = Dataset(data_path, args.dataset)
 examples = torch.from_numpy(dataset.get_train().astype('int64'))
 exec('model = '+args.model+'(dataset.get_shape(), args.rank, args.init)')
 exec('regularizer = '+args.regularizer+'(args.reg)')
-device = 'cuda'
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 regularizer.to(device)
 model = load_model(model, save_path)
